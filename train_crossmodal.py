@@ -164,8 +164,8 @@ def train(args):
     tf.summary.scalar('Image Loss', loss_im)
     tf.summary.scalar('Total Loss', total_loss)
     summary_tensor = tf.summary.merge_all()
-    summary_dir_name = '/home/sxg8458/rvs_three_modalities/exp'
-    checkpoint_dir_name = '/home/sxg8458/rvs_three_modalities/exp'
+    summary_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment'
+    checkpoint_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment'
     summary_filewriter = tf.summary.FileWriter(summary_dir_name, tf.get_default_graph())
 
 
