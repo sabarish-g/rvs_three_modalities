@@ -143,73 +143,119 @@ def get_vars(all_vars, scope_name, index):
 	return ckpt_var_dict
 
 
+
 def train(args):
+    
+    
+    #Reading in all the pre extracted features
     image_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/img_features/flickr8k_train_r152_precomp.npy')
+    image_embeddings = np.float32(image_embeddings)
+    #since images are only 6k for training and each image has 5 captions, we have to repeat every image 5 times. 
     image_embeddings_rep = np.repeat(image_embeddings, repeats = 5, axis = 0)
     text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/flickr8k_sentence_skipthoughts.npy')
     audio_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/flickr8k_audio_mfcc.npy')
     
-    image_placeholder = tf.placeholder(tf.float32, shape=[args.batch_size, image_embeddings_rep.shape[1]])
-    text_placeholder = tf.placeholder(tf.float32, shape=[args.batch_size, text_embeddings.shape[1]])
-    #audio_placeholder = tf.placeholder(audio_embeddings.dtype, labels.shape)
+    # image_placeholder = tf.placeholder(tf.float32, shape=[args.batch_size, image_embeddings_rep.shape[1]])
+    # text_placeholder = tf.placeholder(tf.float32, shape=[args.batch_size, text_embeddings.shape[1]])
+    # audio_placeholder = tf.placeholder(audio_embeddings.dtype, labels.shape)
+    # image_path = '/shared/kgcoe-research/mil/new_cvs_data/img_features/splitted'
+    # image_path = '/shared/kgcoe-research/mil/new_cvs_data/img_features/image_data.csv'
+    # text_path = '/shared/kgcoe-research/mil/new_cvs_data/setnence_features/splitted'
+    # audio_path = '/shared/kgcoe-research/mil/new_cvs_data/audio_features/splitted'
     
+    
+    # image_files = os.listdir(image_path)
+    # text_files = os.listdir(text_path)
+    # audio_files = os.listdir(audio_path)
+    
+    # trainDataset = tf.data.TextLineDataset(image_path).shuffle(buffer_size=50000)
+    # trainDataset = trainDataset.map(lambda x: get_single_example(x))
+    # trainDataset = trainDataset.batch(2)    
+    # trainIterator = tf.data.Iterator(dtypes, shapes,output_classes=classes)
+    # trainInitializer = trainDataset.make_initializer()
+    # nextTrainBatch = trainIterator.get_next()    
+    
+    #Creating the iterator from the tf.data.Dataset
+    #Feed npy file
     dataset = tf.data.Dataset.from_tensor_slices((image_embeddings_rep, text_embeddings))
+    
+    #Repeat for num epochs
+    dataset = dataset.repeat(args.num_epochs)
+    
+    #Create the batch size
     dataset = dataset.batch(args.batch_size)
-    iterator = dataset.make_initializable_iterator()
+    
+    #create iterator
+    iterator = dataset.make_one_shot_iterator()
+    
+    #im_emb and txt_emb will be the image and txt having number samples = batch size 
+    im_emb, txt_emb = iterator.get_next()
+    
+  
+    # dataset = tf.data.Dataset.from_tensor_slices((image_embeddings_rep, text_embeddings))
+    # dataset = dataset.batch(args.batch_size)
+    # iterator = dataset.make_initializable_iterator()
 
     # image_embeddings_rep = image_embeddings_rep[0:100,]
     # text_embeddings = text_embeddings[0:100,]
     
     
-    pdb.set_trace()
-    # image_embeddings_rep = tf.convert_to_tensor(image_embeddings_rep, dtype = tf.float32)
+    
     # text_embeddings = tf.convert_to_tensor(text_embeddings, dtype = tf.float32)
-    image_embeddings_rep = tf.constant(image_embeddings_rep, dtype = tf.float32)
-    text_embeddings = tf.constant(text_embeddings, dtype = tf.float32)
+    # image_embeddings_rep = tf.convert_to_tensor(image_embeddings_rep, dtype = tf.float32)
+    # image_embeddings_rep = tf.constant(image_embeddings_rep, dtype = tf.float32)
+    # text_embeddings = tf.constant(text_embeddings, dtype = tf.float32)
+    #Build the CMR Model.
     model = CMR()
-    image_emb, text_emb = model.build_rvs_model(image_embeddings_rep,text_embeddings, args, is_training = True)
-    # pdb.set_trace()
-    loss, loss_s, loss_im = model.sim_loss(image_placeholder, text_placeholder, args)
-    # loss, loss_s, loss_im = model.sim_loss(image_emb, text_emb, args)
+    ie, te = model.build_rvs_model(im_emb,txt_emb, args, is_training = True)
+    pdb.set_trace()
+    # loss, loss_s, loss_im = model.sim_loss(image_placeholder, text_placeholder, args)
+    loss, loss_s, loss_im = model.sim_loss(ie, te, args)
     total_loss = loss 
 
     #Get the training op
     
     train_op, global_step = get_training_op(total_loss, args)
-    # emb_train_op = tf.train.AdamOptimizer(learning_rate=args.lr).minimize(total_loss, global_step=global_step_tensor, var_list=visfeat_vars+sentfeat_vars)
+    
     
     
     tf.summary.scalar('Sentence Loss', loss_s)
     tf.summary.scalar('Image Loss', loss_im)
     tf.summary.scalar('Total Loss', total_loss)
     summary_tensor = tf.summary.merge_all()
-    summary_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment'
-    checkpoint_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment'
+    summary_dir_name = '/home/sxg8458/rvs_three_modalities/exp'
+    checkpoint_dir_name = '/home/sxg8458/rvs_three_modalities/exp'
     summary_filewriter = tf.summary.FileWriter(summary_dir_name, tf.get_default_graph())
+    # pdb.set_trace()
 
-
-    # checkpoint_saver = tf.train.Saver(keep_checkpoint_every_n_hours=0.05, max_to_keep=0)
-    # checkpoint_saver_hook = tf.train.CheckpointSaverHook(saver=checkpoint_saver, checkpoint_dir=checkpoint_dir_name, save_steps=args.save_steps)
+    checkpoint_saver = tf.train.Saver(keep_checkpoint_every_n_hours=0.05, max_to_keep=0)
+    checkpoint_saver_hook = tf.train.CheckpointSaverHook(saver=checkpoint_saver, checkpoint_dir=checkpoint_dir_name, save_steps=args.save_steps)
     saver = tf.train.Saver(max_to_keep=2)
     session_config = tf.ConfigProto()
     session_config.gpu_options.allow_growth = True
-    
+    # pdb.set_trace()
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     with tf.Session(config=session_config) as sess:
+        pdb.set_trace()
         sess.run([tf.global_variables_initializer()])
-        sess.run(iterator.initializer)
+        # sess.run([iterator.initializer])
         param_file = open(os.path.join(checkpoint_dir_name, 'exp_params.txt'), 'w')
         for key, value in vars(args).items():
             param_file.write(str(key)+' : '+ str(value)+'\n')
         param_file.close()
         start_time = time.time()
         i=0
-        pdb.set_trace()
-        while i<20:
-            features,labels = iterator.get_next()
+        
+        while i<100:
+            # features,labels = iterator.get_next()
+            summary, _, loss, s_loss, im_loss, g_step, img, txt = sess.run([summary_tensor, train_op, total_loss, loss_s, loss_im, global_step, ie, te])
+            print "Iteration: {} Total: {} Sentence : {} Image : {} ".format(i+1, loss, s_loss, im_loss)
+            summary_filewriter.add_summary(summary, g_step)
             i+=1
+            
+            # print(result_im.shape, result_txt.shape)
     # with tf.Session(config=session_config) as sess:
         # sess.run([tf.global_variables_initializer()])
 		# sess.run(iterator.initializer)
@@ -243,7 +289,9 @@ def train(args):
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
+    
     parser.add_argument('--measure', type=str, default='cosine', help="Type of loss")
+    
     parser.add_argument('--mine_n_hard', type=int, default=0, help="Flag to enable hard negative mining")
     parser.add_argument('--use_abs', action='store_true', help="use_absolute values for embeddings")
     parser.add_argument('--margin', type=float, default=0.05, help="Margin component")
@@ -251,7 +299,7 @@ if __name__=="__main__":
     parser.add_argument('--save_steps', type=int, default=200, help="Checkpoint saving step interval")
     
     #All the below arguments are for get_train_op
-    parser.add_argument('--batch_size', type=int, default=32, help="Batch size")
+    parser.add_argument('--batch_size', type=int, default=20, help="Batch size")
     parser.add_argument('--num_epochs', type=int, default=10, help="Number of epochs")
     
     parser.add_argument('--decay_steps', type=int, default=10000, help="Checkpoint saving step interval")
