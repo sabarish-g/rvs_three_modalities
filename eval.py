@@ -148,10 +148,24 @@ def eval(args):
     text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/test/flickr8k_sentence_skipthoughts_test.npy')
 
     # pdb.set_trace()
+    dataset = tf.data.Dataset.from_tensor_slices((image_embeddings_rep, text_embeddings))
+    
+    #Repeat for num epochs
+    dataset = dataset.repeat(args.num_epochs)
+    
+    #Create the batch size
+    dataset = dataset.batch(args.batch_size)
+    
+    #create iterator
+    iterator = dataset.make_one_shot_iterator()
+    
+    #im_emb and txt_emb will be the image and txt having number samples = batch size 
+    im_emb, txt_emb = iterator.get_next()
+    
     image_embeddings_val=np.zeros((5000, args.emb_dim))
     text_embeddings_val=np.zeros((5000, args.emb_dim))
     model = CMR()
-    image_embeddings_t, text_embeddings_t = model.build_rvs_model(image_embeddings_rep,text_embeddings, args, is_training = True)
+    image_embeddings_t, text_embeddings_t = model.build_rvs_model(im_emb,txt_emb, args, is_training = True)
         
     print(image_embeddings_t.shape)
     print(text_embeddings_t.shape)
@@ -212,7 +226,7 @@ if __name__ == "__main__":
     # parser.add_argument('--val_ids_path', type=str, default='/shared/kgcoe-research/mil/peri/mscoco_data/test.ids', help="Test IDs path")
     # parser.add_argument('--val_caps_path', type=str, default='/shared/kgcoe-research/mil/peri/mscoco_data/test_caps.txt', help="Test captions path")
     # parser.add_argument('--test_sample', type=str, default='COCO_val2014_000000483108.jpg', help="Test captions path")
-    # parser.add_argument('--measure', type=str, default='cosine', help="Type of measure")
+    parser.add_argument('--measure', type=str, default='cosine', help="Type of measure")
     # parser.add_argument('--record_path', type=str, default='/shared/kgcoe-research/mil/peri/mscoco_data/coco_val_precompute.tfrecord', help="Path to val tfrecord")
     # parser.add_argument('--root_path', type=str, default='/shared/kgcoe-research/mil/video_project/mscoco_skipthoughts/images/val2014', help="Experiment dir")
     parser.add_argument('--checkpoint', type=str, default='/shared/kgcoe-research/mil/new_cvs_data/experiment/model.ckpt', help="checkpoint")
