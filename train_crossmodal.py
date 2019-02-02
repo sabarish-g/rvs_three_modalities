@@ -24,8 +24,8 @@ def get_training_op(loss, args):
     global_step = tf.train.get_or_create_global_step(graph=tf.get_default_graph())
 
     INITIAL_LEARNING_RATE=args.lr
-    DECAY_STEPS = args.decay_steps
-    LEARNING_RATE_DECAY_FACTOR = args.decay_factor
+    # DECAY_STEPS = args.decay_steps
+    # LEARNING_RATE_DECAY_FACTOR = args.decay_factor
     # Decay the learning rate exponentially based on the number of steps.
     # lr_non_emb = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
                                   # global_step,
@@ -33,19 +33,20 @@ def get_training_op(loss, args):
                                   # LEARNING_RATE_DECAY_FACTOR,
                                   # staircase=True)
                                   
-    lr_emb = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
-                                  global_step,
-                                  DECAY_STEPS,
-                                  LEARNING_RATE_DECAY_FACTOR,
-                                  staircase=True)
-    tf.summary.scalar('learning rate', lr_emb)
+    # lr_emb = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
+                                  # global_step,
+                                  # DECAY_STEPS,
+                                  # LEARNING_RATE_DECAY_FACTOR,
+                                  # staircase=True)
+    # tf.summary.scalar('learning rate', lr_emb)
+    tf.summary.scalar('learning rate', INITIAL_LEARNING_RATE)
     # Define the optimizers. Here, feature extractor and metric embedding layers have different learning rates during training.
     if args.optimizer=='adam':
         # optimizer_non_emb = tf.train.AdamOptimizer(learning_rate=lr_non_emb)
-        optimizer_emb = tf.train.AdamOptimizer(learning_rate=lr_emb)
+        optimizer_emb = tf.train.AdamOptimizer(learning_rate=INITIAL_LEARNING_RATE)
     elif args.optimizer=='momentum':
-        optimizer_non_emb = tf.train.MomentumOptimizer(learning_rate=lr_non_emb, momentum=0.9)
-        optimizer_emb = tf.train.MomentumOptimizer(learning_rate=lr_emb, momentum=0.9)
+        optimizer_non_emb = tf.train.MomentumOptimizer(learning_rate=INITIAL_LEARNING_RATE, momentum=0.9)
+        optimizer_emb = tf.train.MomentumOptimizer(learning_rate=INITIAL_LEARNING_RATE, momentum=0.9)
     
     # Get variables of specific sub networks using scope names
     # vars_fe = get_vars(all_vars, scope_name='Feature_extractor', index=18)

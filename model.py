@@ -22,7 +22,7 @@ class CMR(object):
         # self.word_dim = word_dim
     
     
-    def _build_embedding(self, feat_anchor, embedding_dim=512, scope_name="embedding", act_fn=None, reuse=None):
+    def _build_embedding(self, feat_anchor, embedding_dim=512, scope_name="embedding", act_fn=tf.nn.tanh, reuse=None):
         """
         Build the embedding network
         """
