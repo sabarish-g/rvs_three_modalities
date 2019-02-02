@@ -62,11 +62,8 @@ class CMR(object):
                     norm_image_embeddings = tf.abs(norm_image_embeddings)
                     norm_text_embeddings = tf.abs(norm_text_embeddings)
                     
-                if params.measure=='cosine':
-                    print(norm_image_embeddings.shape,norm_text_embeddings.shape)
-                    
+                if params.measure=='cosine':                    
                     sim_scores = tf.matmul(norm_image_embeddings, norm_text_embeddings, transpose_b=True, name='sim_score')
-                    print(sim_scores.shape)
                 elif params.measure=='order':
                     # refer to eqn in paper or code of http://openaccess.thecvf.com/content_cvpr_2018/papers/Wehrmann_Bidirectional_Retrieval_Made_CVPR_2018_paper.pdf
                     im_emb = tf.expand_dims(norm_image_embeddings, 0) # 1x128x2048
@@ -79,7 +76,6 @@ class CMR(object):
               
             # Get the diagonal of the matrix
             sim_diag = tf.expand_dims(tf.diag_part(sim_scores), 0, name='sim_diag')
-            print(sim_diag.shape.as_list())
             # sim_diag_tile = tf.tile(sim_diag, multiples=[sim_diag.shape.as_list()[1], 1], name='sim_diag_tile')
             sim_diag_tile = tf.tile(sim_diag, multiples=[120, 1], name='sim_diag_tile')
             sim_diag_transpose = tf.transpose(sim_diag, name='sim_diag_transpose')

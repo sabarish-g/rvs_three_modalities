@@ -1,9 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import argparse
-# from data.flowers_data_loader import *
-# from data.coco_data_loader import *
-# from data.flickr_data_loader import *
 from model import *
 import argparse
 import os
@@ -154,27 +151,7 @@ def train(args):
     image_embeddings_rep = np.repeat(image_embeddings, repeats = 5, axis = 0)
     text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/flickr8k_sentence_skipthoughts.npy')
     audio_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/flickr8k_audio_mfcc.npy')
-    
-    # image_placeholder = tf.placeholder(tf.float32, shape=[args.batch_size, image_embeddings_rep.shape[1]])
-    # text_placeholder = tf.placeholder(tf.float32, shape=[args.batch_size, text_embeddings.shape[1]])
-    # audio_placeholder = tf.placeholder(audio_embeddings.dtype, labels.shape)
-    # image_path = '/shared/kgcoe-research/mil/new_cvs_data/img_features/splitted'
-    # image_path = '/shared/kgcoe-research/mil/new_cvs_data/img_features/image_data.csv'
-    # text_path = '/shared/kgcoe-research/mil/new_cvs_data/setnence_features/splitted'
-    # audio_path = '/shared/kgcoe-research/mil/new_cvs_data/audio_features/splitted'
-    
-    
-    # image_files = os.listdir(image_path)
-    # text_files = os.listdir(text_path)
-    # audio_files = os.listdir(audio_path)
-    
-    # trainDataset = tf.data.TextLineDataset(image_path).shuffle(buffer_size=50000)
-    # trainDataset = trainDataset.map(lambda x: get_single_example(x))
-    # trainDataset = trainDataset.batch(2)    
-    # trainIterator = tf.data.Iterator(dtypes, shapes,output_classes=classes)
-    # trainInitializer = trainDataset.make_initializer()
-    # nextTrainBatch = trainIterator.get_next()    
-    
+        
     #Creating the iterator from the tf.data.Dataset
     #Feed npy file
     dataset = tf.data.Dataset.from_tensor_slices((image_embeddings_rep, text_embeddings))
@@ -191,20 +168,6 @@ def train(args):
     #im_emb and txt_emb will be the image and txt having number samples = batch size 
     im_emb, txt_emb = iterator.get_next()
     
-  
-    # dataset = tf.data.Dataset.from_tensor_slices((image_embeddings_rep, text_embeddings))
-    # dataset = dataset.batch(args.batch_size)
-    # iterator = dataset.make_initializable_iterator()
-
-    # image_embeddings_rep = image_embeddings_rep[0:100,]
-    # text_embeddings = text_embeddingcs[0:100,]
-    
-    
-    
-    # text_embeddings = tf.convert_to_tensor(text_embeddings, dtype = tf.float32)
-    # image_embeddings_rep = tf.convert_to_tensor(image_embeddings_rep, dtype = tf.float32)
-    # image_embeddings_rep = tf.constant(image_embeddings_rep, dtype = tf.float32)
-    # text_embeddings = tf.constant(text_embeddings, dtype = tf.float32)
     #Build the CMR Model.
     model = CMR()
     ie, te = model.build_rvs_model(im_emb,txt_emb, args, is_training = True)
@@ -221,20 +184,17 @@ def train(args):
     tf.summary.scalar('Image Loss', loss_im)
     tf.summary.scalar('Total Loss', total_loss)
     summary_tensor = tf.summary.merge_all()
-    summary_dir_name = '/home/sxg8458/rvs_three_modalities/exp'
-    checkpoint_dir_name = '/home/sxg8458/rvs_three_modalities/exp'
+    summary_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment'
+    checkpoint_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment'
     summary_filewriter = tf.summary.FileWriter(summary_dir_name, tf.get_default_graph())
     # pdb.set_trace()
 
-    checkpoint_saver = tf.train.Saver(keep_checkpoint_every_n_hours=0.05, max_to_keep=0)
-    checkpoint_saver_hook = tf.train.CheckpointSaverHook(saver=checkpoint_saver, checkpoint_dir=checkpoint_dir_name, save_steps=args.save_steps)
+    # checkpoint_saver = tf.train.Saver(keep_checkpoint_every_n_hours=0.05, max_to_keep=0)
+    # checkpoint_saver_hook = tf.train.CheckpointSaverHook(saver=checkpoint_saver, checkpoint_dir=checkpoint_dir_name, save_steps=args.save_steps)
     saver = tf.train.Saver(max_to_keep=2)
     session_config = tf.ConfigProto()
     session_config.gpu_options.allow_growth = True
     # pdb.set_trace()
-    
-    
-    
     
     with tf.Session(config=session_config) as sess:
         # pdb.set_trace()
@@ -258,40 +218,8 @@ def train(args):
                 break
             if ((g_step+1)%1000 == 0):
                 print('Saving checkpoint at step %d' % (g_step+1))
-                saver.save(sess, os.path.join(checkpoint_dir_name, 'model.ckpt'+str(global_step+1)))
+                saver.save(sess, os.path.join(checkpoint_dir_name, 'model.ckpt'))
         
-           
-            
-            # print(result_im.shape, result_txt.shape)
-    # with tf.Session(config=session_config) as sess:
-        # sess.run([tf.global_variables_initializer()])
-		# sess.run(iterator.initializer)
-        # param_file = open(os.path.join(checkpoint_dir_name, 'exp_params.txt'), 'w')
-        # for key, value in vars(args).items():
-            # param_file.write(str(key)+' : '+ str(value)+'\n')
-        # param_file.close()
-        # start_time = time.time()
-		# features,labels = iterator.get_next()
-		# pdb.set_trace()
-        # while not sess.should_stop():
-        # try:
-        # i = 0
-        # pdb.set_trace()
-        # ie, te = sess.run([image_embeddings_rep, text_embeddings])
-        # while i < 100:
-		    # features, labels = iterator.get_next()
-            # summary_val,__,total_loss_val, loss_s_val, loss_im_val, global_step_value = sess.run([summary_tensor, train_op,total_loss, loss_s, loss_im, global_step])
-            # i +=1
-            # print('value of i is %s' %i)
-            # print "Iteration: {} Total: {} Sentence : {} Image : {} ".format(i+1, total_loss_val, loss_s_val, loss_im_val)
-        # if (global_step_value+1)%100==0: 
-            # end_time=time.time()
-            # print "Iteration: {} Total: {} Sentence : {} Image : {} Step time: {}".format(global_step_value+1, total_loss_val, loss_s_val, loss_im_val, (end_time-start_time)/100)
-            # summary_filewriter.add_summary(summary_val, global_step_value)
-            # start_time=time.time()                
-            # except tf.errors.OutOfRangeError:
-                # break
-
 
 
 if __name__=="__main__":
@@ -312,14 +240,14 @@ if __name__=="__main__":
     
     parser.add_argument('--decay_steps', type=int, default=10000, help="Checkpoint saving step interval")
     parser.add_argument('--decay_factor', type=float, default=0.9, help="Checkpoint saving step interval")
-    parser.add_argument('--emb_dim', type=int, default=2048, help="CVS dimension")
-    parser.add_argument('--word_dim', type=int, default=300, help="Word Embedding dimension")
+    parser.add_argument('--emb_dim', type=int, default=512, help="CVS dimension")
+    # parser.add_argument('--word_dim', type=int, default=300, help="Word Embedding dimension")
     
     parser.add_argument('--optimizer', type=str, default='adam', help="Optimizer")
-    parser.add_argument('--train_only_emb', action='store_true', help="train only embedding layer")
-    parser.add_argument('--no_train_cnn', action='store_true', help="Flag to not train CNN")
-    parser.add_argument('--no_pretrain_lstm', action='store_true', help="Flag to not use pre-trained LSTM weights")
-    parser.add_argument('--clip_grad_norm', type=float, default=None, help="Value of gradient clipping")
+    # parser.add_argument('--train_only_emb', action='store_true', help="train only embedding layer")
+    # parser.add_argument('--no_train_cnn', action='store_true', help="Flag to not train CNN")
+    # parser.add_argument('--no_pretrain_lstm', action='store_true', help="Flag to not use pre-trained LSTM weights")
+    # parser.add_argument('--clip_grad_norm', type=float, default=None, help="Value of gradient clipping")
     # parser.add_argument('--precompute', action='store_true', help="Flag to use precomputed CNN features")
     
 
