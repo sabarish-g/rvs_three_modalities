@@ -197,7 +197,7 @@ def train(args):
     # iterator = dataset.make_initializable_iterator()
 
     # image_embeddings_rep = image_embeddings_rep[0:100,]
-    # text_embeddings = text_embeddings[0:100,]
+    # text_embeddings = text_embeddingcs[0:100,]
     
     
     
@@ -208,7 +208,7 @@ def train(args):
     #Build the CMR Model.
     model = CMR()
     ie, te = model.build_rvs_model(im_emb,txt_emb, args, is_training = True)
-    pdb.set_trace()
+    # pdb.set_trace()
     # loss, loss_s, loss_im = model.sim_loss(image_placeholder, text_placeholder, args)
     loss, loss_s, loss_im = model.sim_loss(ie, te, args)
     total_loss = loss 
@@ -216,8 +216,6 @@ def train(args):
     #Get the training op
     
     train_op, global_step = get_training_op(total_loss, args)
-    
-    
     
     tf.summary.scalar('Sentence Loss', loss_s)
     tf.summary.scalar('Image Loss', loss_im)
@@ -234,11 +232,12 @@ def train(args):
     session_config = tf.ConfigProto()
     session_config.gpu_options.allow_growth = True
     # pdb.set_trace()
-
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
+    
+    
+    
+    
     with tf.Session(config=session_config) as sess:
-        pdb.set_trace()
+        # pdb.set_trace()
         sess.run([tf.global_variables_initializer()])
         # sess.run([iterator.initializer])
         param_file = open(os.path.join(checkpoint_dir_name, 'exp_params.txt'), 'w')
@@ -248,12 +247,20 @@ def train(args):
         start_time = time.time()
         i=0
         
-        while i<100:
-            # features,labels = iterator.get_next()
-            summary, _, loss, s_loss, im_loss, g_step, img, txt = sess.run([summary_tensor, train_op, total_loss, loss_s, loss_im, global_step, ie, te])
-            print "Iteration: {} Total: {} Sentence : {} Image : {} ".format(i+1, loss, s_loss, im_loss)
-            summary_filewriter.add_summary(summary, g_step)
-            i+=1
+        while True:
+            try:
+                # features,labels = iterator.get_next()
+                summary, _, loss, s_loss, im_loss, g_step, img, txt = sess.run([summary_tensor, train_op, total_loss, loss_s, loss_im, global_step, ie, te])
+                if (g_step+1)%200 == 0:
+                    print "Iteration : {} Total: {} Sentence : {} Image : {} ".format(g_step+1, loss, s_loss, im_loss)
+                    summary_filewriter.add_summary(summary, g_step)
+            except tf.errors.OutOfRangeError:
+                break
+            if ((g_step+1)%1000 == 0):
+                print('Saving checkpoint at step %d' % (g_step+1))
+                saver.save(sess, os.path.join(checkpoint_dir_name, 'model.ckpt'+str(global_step+1)))
+        
+           
             
             # print(result_im.shape, result_txt.shape)
     # with tf.Session(config=session_config) as sess:
@@ -291,6 +298,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--measure', type=str, default='cosine', help="Type of loss")
+    parser.add_argument('--saveEvery', type=int, default=50, help="How often checkpoints to save")
     
     parser.add_argument('--mine_n_hard', type=int, default=0, help="Flag to enable hard negative mining")
     parser.add_argument('--use_abs', action='store_true', help="use_absolute values for embeddings")
@@ -299,8 +307,8 @@ if __name__=="__main__":
     parser.add_argument('--save_steps', type=int, default=200, help="Checkpoint saving step interval")
     
     #All the below arguments are for get_train_op
-    parser.add_argument('--batch_size', type=int, default=20, help="Batch size")
-    parser.add_argument('--num_epochs', type=int, default=10, help="Number of epochs")
+    parser.add_argument('--batch_size', type=int, default=120, help="Batch size")
+    parser.add_argument('--num_epochs', type=int, default=20, help="Number of epochs")
     
     parser.add_argument('--decay_steps', type=int, default=10000, help="Checkpoint saving step interval")
     parser.add_argument('--decay_factor', type=float, default=0.9, help="Checkpoint saving step interval")

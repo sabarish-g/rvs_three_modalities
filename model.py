@@ -43,7 +43,7 @@ class CMR(object):
         image_embeddings = self._build_embedding(image_features, self.embedding_dim, act_fn=None, reuse=reuse, scope_name='image_embedding')
         
         #Build the embeddings for captions
-        text_embeddings = self._build_embedding(text_features, self.embedding_dim, act_fn=None, reuse=reuse, scope_name='text_embedding')
+        text_embeddings = self._build_embedding(text_features, self.embedding_dim, act_fn=None, reuse=reuse, scope_name='text_embedding')  
 
         return image_embeddings, text_embeddings
         
@@ -80,11 +80,11 @@ class CMR(object):
             # Get the diagonal of the matrix
             sim_diag = tf.expand_dims(tf.diag_part(sim_scores), 0, name='sim_diag')
             print(sim_diag.shape.as_list())
-            sim_diag_tile = tf.tile(sim_diag, multiples=[sim_diag.shape.as_list()[1], 1], name='sim_diag_tile')
-            # sim_diag_tile = tf.tile(sim_diag, multiples=[20, 1], name='sim_diag_tile')
+            # sim_diag_tile = tf.tile(sim_diag, multiples=[sim_diag.shape.as_list()[1], 1], name='sim_diag_tile')
+            sim_diag_tile = tf.tile(sim_diag, multiples=[120, 1], name='sim_diag_tile')
             sim_diag_transpose = tf.transpose(sim_diag, name='sim_diag_transpose')
-            sim_diag_tile_transpose = tf.tile(sim_diag_transpose, multiples=[1, sim_diag.shape.as_list()[1]], name='sim_diag_tile_transpose')
-            # sim_diag_tile_transpose = tf.tile(sim_diag_transpose, multiples=[1, 20], name='sim_diag_tile_transpose')
+            # sim_diag_tile_transpose = tf.tile(sim_diag_transpose, multiples=[1, sim_diag.shape.as_list()[1]], name='sim_diag_tile_transpose')
+            sim_diag_tile_transpose = tf.tile(sim_diag_transpose, multiples=[1, 120], name='sim_diag_tile_transpose')
 
             # compare every diagonal score to scores in its column
             # caption retrieval
@@ -94,7 +94,8 @@ class CMR(object):
             loss_im = tf.maximum(self.margin + sim_scores - sim_diag_tile, 0.)
 
             # clear the costs for diagonal elements
-            mask = tf.eye(loss_s.shape.as_list()[0], dtype=tf.bool, name='Mask')
+            # mask = tf.eye(loss_s.shape.as_list()[0], dtype=tf.bool, name='Mask')
+            mask = tf.eye(120, dtype=tf.bool, name='Mask')
             mask_not = tf.cast(tf.logical_not(mask, name='mask_not'), tf.float32)
             
             neg_s_loss   = tf.multiply(loss_s, mask_not, name='neg_s_loss')
@@ -109,7 +110,8 @@ class CMR(object):
                     loss_s = tf.contrib.framework.sort(neg_s_loss, axis=1, direction='DESCENDING')
                     loss_im = tf.contrib.framework.sort(neg_im_loss, axis=0, direction='DESCENDING')
                     # Build the index matrix to gather_nd
-                    batch_size=loss_s.shape.as_list()[0]
+                    # batch_size=loss_s.shape.as_list()[0]
+                    batch_size=120
                     indices= np.zeros((batch_size, mine_n_hard, 2))
                     for it in range(batch_size):
                         for m in range(mine_n_hard):
