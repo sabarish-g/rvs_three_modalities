@@ -12,7 +12,7 @@ class CMR(object):
     Base class for Cross-Modal Retrieval experiments
     """  # '/shared/kgcoe-research/mil/peri/scan_data/mscoco_vocab.txt'
     # def __init__(self, base='inception_v1', vocab_file='/shared/kgcoe-research/mil/peri/mscoco_data/mscoco_1024d_2gru/vocab_mscoco.enc', margin=1., embedding_dim=512,word_dim=1024, vocab_size=26735):
-    def __init__(self, embedding_dim=512,margin=1.):
+    def __init__(self, embedding_dim=512,margin=0.05):
         self.scope_name='CMR'
         # self.base_arch = base
         self.margin=margin
@@ -31,9 +31,17 @@ class CMR(object):
                              weights_initializer=tf.contrib.layers.xavier_initializer(),
                              weights_regularizer=slim.l2_regularizer(0.0002),
                              reuse=reuse): #
-            embedding = slim.fully_connected(feat_anchor, embedding_dim, activation_fn=act_fn, scope=scope_name)
+            embedding = slim.fully_connected(feat_anchor, embedding_dim, activation_fn=act_fn, scope=scope_name)      
 
-        return embedding	        
+        return embedding
+
+    def _feature_embed(self,X, emb_dim, is_training=True, reuse=False,dropout_ratio=0.9):
+        with slim.arg_scope([slim.fully_connected], activation_fn=None, reuse=reuse):
+            net = tf.nn.tanh(slim.dropout(slim.fully_connected(X, emb_dim, scope='embedding_layer1'),keep_prob=dropout_ratio, is_training=is_training))
+            net = tf.nn.tanh(slim.dropout(slim.fully_connected(net, emb_dim, scope='embedding_layer2'),keep_prob=dropout_ratio, is_training=is_training))
+            net = slim.fully_connected(X, emb_dim, scope='embedding_layer3')
+        return net
+    
     
     def build_rvs_model(self, image_features, text_features, params, is_training=True, reuse=None):
         """
@@ -41,9 +49,11 @@ class CMR(object):
         """
         #Build the embeddings for images.
         image_embeddings = self._build_embedding(image_features, self.embedding_dim, act_fn=None, reuse=reuse, scope_name='image_embedding')
+        # image_embeddings = self._feature_embed(image_features, self.embedding_dim)
         
         #Build the embeddings for captions
         text_embeddings = self._build_embedding(text_features, self.embedding_dim, act_fn=None, reuse=reuse, scope_name='text_embedding')  
+        # text_embeddings = self._feature_embed(text_features, self.embedding_dim)  
 
         return image_embeddings, text_embeddings
         

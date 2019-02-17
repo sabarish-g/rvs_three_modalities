@@ -20,6 +20,8 @@ def get_training_op(loss, args):
     # Gather all the variables in the graph
     
     all_vars = tf.trainable_variables()
+    # pdb.set_trace()
+    
     # Global step for the graph
     global_step = tf.train.get_or_create_global_step(graph=tf.get_default_graph())
 
@@ -45,8 +47,8 @@ def get_training_op(loss, args):
         # optimizer_non_emb = tf.train.AdamOptimizer(learning_rate=lr_non_emb)
         optimizer_emb = tf.train.AdamOptimizer(learning_rate=INITIAL_LEARNING_RATE)
     elif args.optimizer=='momentum':
-        optimizer_non_emb = tf.train.MomentumOptimizer(learning_rate=INITIAL_LEARNING_RATE, momentum=0.9)
-        optimizer_emb = tf.train.MomentumOptimizer(learning_rate=INITIAL_LEARNING_RATE, momentum=0.9)
+        optimizer_non_emb = tf.train.MomentumOptimizer(learning_rate=INITIAL_LEARNING_RATE, momentum=0.98)
+        optimizer_emb = tf.train.MomentumOptimizer(learning_rate=INITIAL_LEARNING_RATE, momentum=0.98)
     
     # Get variables of specific sub networks using scope names
     # vars_fe = get_vars(all_vars, scope_name='Feature_extractor', index=18)
@@ -150,9 +152,14 @@ def train(args):
     image_embeddings = np.float32(image_embeddings)
     #since images are only 6k for training and each image has 5 captions, we have to repeat every image 5 times. 
     image_embeddings_rep = np.repeat(image_embeddings, repeats = 5, axis = 0)
-    text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/flickr8k_sentence_skipthoughts.npy')
-    audio_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/flickr8k_audio_mfcc.npy')
-        
+    
+    # text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/flickr8k_sentence_skipthoughts.npy')
+    
+    text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/flickr8k_audio_mfcc.npy')
+    text_embeddings = np.float32(text_embeddings)
+    
+    text_embeddings = text_embeddings/(np.max(text_embeddings))
+    
     #Creating the iterator from the tf.data.Dataset
     #Feed npy file
     dataset = tf.data.Dataset.from_tensor_slices((image_embeddings_rep, text_embeddings))
@@ -227,7 +234,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--measure', type=str, default='cosine', help="Type of loss")
-    parser.add_argument('--saveEvery', type=int, default=50, help="How often checkpoints to save")
+    parser.add_argument('--saveEvery', type=int, default=100, help="How often checkpoints to save")
     
     parser.add_argument('--mine_n_hard', type=int, default=0, help="Flag to enable hard negative mining")
     parser.add_argument('--use_abs', action='store_true', help="use_absolute values for embeddings")
@@ -237,11 +244,11 @@ if __name__=="__main__":
     
     #All the below arguments are for get_train_op
     parser.add_argument('--batch_size', type=int, default=120, help="Batch size")
-    parser.add_argument('--num_epochs', type=int, default=20, help="Number of epochs")
+    parser.add_argument('--num_epochs', type=int, default=200, help="Number of epochs")
     
     parser.add_argument('--decay_steps', type=int, default=10000, help="Checkpoint saving step interval")
     parser.add_argument('--decay_factor', type=float, default=0.9, help="Checkpoint saving step interval")
-    parser.add_argument('--emb_dim', type=int, default=512, help="CVS dimension")
+    # parser.add_argument('--emb_dim', type=int, default=512, help="CVS dimension")
     # parser.add_argument('--word_dim', type=int, default=300, help="Word Embedding dimension")
     
     parser.add_argument('--optimizer', type=str, default='adam', help="Optimizer")

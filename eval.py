@@ -34,6 +34,7 @@ def t2i_gpu(image_embeddings, text_embeddings, measure='order', shard_size=25):
     Returns: 
          Recall scores and ranks
     """
+    
     # Runs a batch of 50 text samples with all other image embeddings in the dataset
     # Tiling to replicate each text sample to match number of total image samples
     text_tensor = tf.placeholder(shape=(shard_size, image_embeddings.shape[1]), dtype=tf.float32)
@@ -59,8 +60,9 @@ def t2i_gpu(image_embeddings, text_embeddings, measure='order', shard_size=25):
                 idx = sess.run(inds, feed_dict={image_tensor:unique_im_embeddings,
                                           text_tensor: text_embeddings[i:i+shard_size]})
                 inds_np[i: i+shard_size, :] = idx.T
-
+    
     elif measure=='cosine':
+        pdb.set_trace()
         sim_scores = np.matmul(text_embeddings, unique_im_embeddings.T)
         inds_np = np.argsort(sim_scores)[:, ::-1]
         
@@ -138,16 +140,23 @@ def i2t_gpu(image_embeddings, text_embeddings, measure='order', shard_size=25):
     medr = np.floor(np.median(ranks)) + 1
     meanr = ranks.mean() + 1
     return (r1, r5, r10, medr, meanr), (ranks, top1), inds_np
-    
+
 def eval(args):
     
     #load data
     image_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/img_features/test/flickr8k_test_r152_precomp.npy')
     image_embeddings = np.float32(image_embeddings)
     image_embeddings_rep = np.repeat(image_embeddings, repeats = 5, axis = 0)
-    text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/test/flickr8k_sentence_skipthoughts_test.npy')
+    
+    
+    # text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/test/flickr8k_sentence_skipthoughts_test.npy')
+    
+    text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/test/flickr8k_audio_mfcc_test.npy')
+    text_embeddings = np.float32(text_embeddings)
+    
+    text_embeddings = text_embeddings/(np.max(text_embeddings))
 
-    # pdb.set_trace()
+    pdb.set_trace()
     dataset = tf.data.Dataset.from_tensor_slices((image_embeddings_rep, text_embeddings))
     
     #Repeat for num epochs
@@ -196,6 +205,7 @@ def eval(args):
     # Average over 5 folds
     
     results=[]
+    pdb.set_trace()
     ri, ri0, i2t_ranked_idx = i2t_gpu(image_embeddings_val, text_embeddings_val, measure=args.measure)
     print "Image to Text: "
     print "R@1: {} R@5: {} R@10 : {} Med: {} Mean: {}".format(ri[0], ri[1], ri[2], ri[3], ri[4])
