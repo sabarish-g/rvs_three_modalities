@@ -85,6 +85,7 @@ class CMR(object):
                     sim_scores = -tf.transpose(tf.sqrt(sqr_diff_sum), name='order_sim_scores')                                         
               
             # Get the diagonal of the matrix
+            pdb.set_trace()
             sim_diag = tf.expand_dims(tf.diag_part(sim_scores), 0, name='sim_diag')
             # sim_diag_tile = tf.tile(sim_diag, multiples=[sim_diag.shape.as_list()[1], 1], name='sim_diag_tile')
             sim_diag_tile = tf.tile(sim_diag, multiples=[120, 1], name='sim_diag_tile')
