@@ -10,8 +10,8 @@ import datetime
 import time
 # tf.enable_eager_execution()
 tf.set_random_seed(1234)
+from sklearn.preprocessing import MinMaxScaler
 
-	
 
 def get_training_op(loss, args):
     """
@@ -26,99 +26,29 @@ def get_training_op(loss, args):
     global_step = tf.train.get_or_create_global_step(graph=tf.get_default_graph())
 
     INITIAL_LEARNING_RATE=args.lr
-    # DECAY_STEPS = args.decay_steps
-    # LEARNING_RATE_DECAY_FACTOR = args.decay_factor
-    # Decay the learning rate exponentially based on the number of steps.
-    # lr_non_emb = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
-                                  # global_step,
-                                  # DECAY_STEPS,
-                                  # LEARNING_RATE_DECAY_FACTOR,
-                                  # staircase=True)
-                                  
-    # lr_emb = tf.train.exponential_decay(INITIAL_LEARNING_RATE,
-                                  # global_step,
-                                  # DECAY_STEPS,
-                                  # LEARNING_RATE_DECAY_FACTOR,
-                                  # staircase=True)
-    # tf.summary.scalar('learning rate', lr_emb)
     tf.summary.scalar('learning rate', INITIAL_LEARNING_RATE)
     # Define the optimizers. Here, feature extractor and metric embedding layers have different learning rates during training.
     if args.optimizer=='adam':
-        # optimizer_non_emb = tf.train.AdamOptimizer(learning_rate=lr_non_emb)
         optimizer_emb = tf.train.AdamOptimizer(learning_rate=INITIAL_LEARNING_RATE)
     elif args.optimizer=='momentum':
-        optimizer_non_emb = tf.train.MomentumOptimizer(learning_rate=INITIAL_LEARNING_RATE, momentum=0.98)
         optimizer_emb = tf.train.MomentumOptimizer(learning_rate=INITIAL_LEARNING_RATE, momentum=0.98)
     
     # Get variables of specific sub networks using scope names
-    # vars_fe = get_vars(all_vars, scope_name='Feature_extractor', index=18)
     vars_ie = get_vars(all_vars, scope_name='image_embedding', index=0)
     vars_te = get_vars(all_vars, scope_name='text_embedding', index=0)
 
-    # vars_emb_matrix = get_vars(all_vars, scope_name='embeddings/embedding', index=0)
-    # vars_seq2seq = get_vars(all_vars, scope_name='dynamic_seq2seq', index=0)
-
-    # vars_shared = get_vars(all_vars, scope_name='shared_embedding', index=0)
-    # fe_len, ie_len, te_len, emb_matrix_len, seq2seq_len, shared_len = len(vars_fe.values()), len(vars_ie.values()), len(vars_te.values()), len(vars_emb_matrix.values()), len(vars_seq2seq.values()), len(vars_shared)
     ie_len, te_len = len(vars_ie.values()), len(vars_te.values())
     
     # Calculate gradients for respective layers
     grad = tf.gradients(loss, vars_ie.values() + vars_te.values())
     grad_ie = grad[:ie_len]
     grad_te = grad[ie_len:ie_len+te_len]
-    '''
-    if args.train_only_emb:
-        grad = tf.gradients(loss, vars_ie.values() + vars_te.values()+ vars_shared.values())
-        grad_ie = grad[:ie_len]
-        grad_te = grad[ie_len:ie_len+te_len]
-        grad_shared = grad[ie_len+te_len:]
-    elif args.no_train_cnn:
-        grad = tf.gradients(loss, vars_ie.values() + vars_te.values() + vars_seq2seq.values()+ vars_emb_matrix.values()+vars_shared.values())
-        if args.clip_grad_norm:
-            grad = [tf.clip_by_norm(tensor, args.clip_grad_norm, name=tensor.op.name+'_norm') if tensor is not None else None for tensor in grad]
-        grad_ie = grad[:ie_len]
-        grad_te = grad[ie_len: ie_len+te_len]
-        grad_seq2seq = grad[ie_len+te_len: ie_len+te_len+seq2seq_len]
-        grad_emb = grad[ie_len+te_len+seq2seq_len:ie_len+te_len+seq2seq_len+emb_matrix_len]
-        grad_shared = grad[ie_len+te_len+seq2seq_len+emb_matrix_len:]
-    else:
-        grad = tf.gradients(loss, vars_fe.values() + vars_ie.values() + vars_te.values() + vars_seq2seq.values()+ vars_emb_matrix.values()+ vars_shared.values())
-        if args.clip_grad_norm:
-            grad = [tf.clip_by_norm(tensor, args.clip_grad_norm, name=tensor.op.name+'_norm') if tensor is not None else None for tensor in grad]
-
-        grad_fe = grad[: fe_len]
-        grad_ie = grad[fe_len: fe_len+ ie_len]
-        grad_te = grad[fe_len+ie_len: fe_len+ie_len+te_len]
-        grad_seq2seq = grad[fe_len+ ie_len+te_len: fe_len+ ie_len+te_len+seq2seq_len]
-        grad_emb = grad[fe_len+ ie_len+te_len+seq2seq_len: fe_len+ ie_len+te_len+seq2seq_len+emb_matrix_len]
-        grad_shared = grad[fe_len+ ie_len+te_len+seq2seq_len+emb_matrix_len:]
-        pdb.set_trace()
-    '''
-    # Define pre-trained savers
-    # image_pretrain_saver=None
-    # if not args.precompute:
-        # image_pretrain_saver = tf.train.Saver(var_list=vars_fe)
-    # lstm_pretrain_saver = tf.train.Saver(var_list= dict(vars_seq2seq.items() + vars_emb_matrix.items()))
 
     # Apply the gradients, update ops for batchnorm
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
         train_op = optimizer_emb.apply_gradients(zip(grad_ie+grad_te, vars_ie.values() + vars_te.values()), global_step=global_step)
-        '''
-        if args.train_only_emb:
-            train_op = optimizer_emb.apply_gradients(zip(grad_ie+grad_te+grad_shared, vars_ie.values() + vars_te.values() + vars_shared.values()), global_step=global_step)
-        elif args.no_train_cnn:
-            train_op_non_emb = optimizer_non_emb.apply_gradients(zip(grad_seq2seq, vars_seq2seq.values()), global_step=global_step)
-            train_op_emb = optimizer_emb.apply_gradients(zip(grad_ie+grad_te+grad_emb+grad_shared, vars_ie.values() + vars_te.values()+ vars_emb_matrix.values()+ vars_shared.values()))
-            # Group individual training ops
-            train_op = tf.group(train_op_non_emb, train_op_emb)
-        else:
-            train_op_non_emb = optimizer_non_emb.apply_gradients(zip(grad_fe+grad_seq2seq+grad_emb, vars_fe.values()+vars_seq2seq.values()+vars_emb_matrix.values()), global_step=global_step)
-            train_op_emb = optimizer_emb.apply_gradients(zip(grad_ie+grad_te+grad_shared, vars_ie.values() + vars_te.values()+ vars_shared.values()))
 
-            # Group individual training ops
-            train_op = tf.group(train_op_non_emb, train_op_emb)
-        '''
     # return train_op, image_pretrain_saver, lstm_pretrain_saver,  global_step
     return train_op,global_step
 
@@ -148,17 +78,20 @@ def train(args):
     
     
     #Reading in all the pre extracted features
-    image_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/img_features/flickr8k_train_r152_precomp.npy')
+    image_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/img_features/flickr8k_train_features.npy')
     image_embeddings = np.float32(image_embeddings)
+    
     #since images are only 6k for training and each image has 5 captions, we have to repeat every image 5 times. 
     image_embeddings_rep = np.repeat(image_embeddings, repeats = 5, axis = 0)
     
-    # text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/flickr8k_sentence_skipthoughts.npy')
+    text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/sentence_features/flickr8k_train_sentence_features.npy')
     
-    text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/flickr8k_audio_mfcc.npy')
-    text_embeddings = np.float32(text_embeddings)
+    audio_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/flickr8k_train_audio_features.npy')
+    audio_embeddings = np.float32(audio_embeddings)
     
-    text_embeddings = text_embeddings/(np.max(text_embeddings))
+    #Scaling the audio features
+    scalar = MinMaxScaler(feature_range=(-1, 1))
+    audio_embeddings = scalar.fit_transform(audio_embeddings)
     
     #Creating the iterator from the tf.data.Dataset
     #Feed npy file
@@ -192,8 +125,8 @@ def train(args):
     tf.summary.scalar('Image Loss', loss_im)
     tf.summary.scalar('Total Loss', total_loss)
     summary_tensor = tf.summary.merge_all()
-    summary_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment'
-    checkpoint_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment'
+    summary_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment_new'
+    checkpoint_dir_name = '/shared/kgcoe-research/mil/new_cvs_data/experiment_new'
     summary_filewriter = tf.summary.FileWriter(summary_dir_name, tf.get_default_graph())
     # pdb.set_trace()
 

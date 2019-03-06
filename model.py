@@ -134,4 +134,4 @@ class CMR(object):
             
             total_loss = loss_s + loss_im
             
-            return total_loss, loss_s, loss_im
+        return total_loss, loss_s, loss_im

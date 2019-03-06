@@ -11,8 +11,7 @@ from preprocessing import preprocessing_factory
 # from data.coco_data_loader import *
 import pdb
 import time
-
-
+from sklearn.preprocessing import MinMaxScaler
 
 def order_sim_gpu(images_placeholder, text_placeholder):
     """
@@ -62,7 +61,7 @@ def t2i_gpu(image_embeddings, text_embeddings, measure='order', shard_size=25):
                 inds_np[i: i+shard_size, :] = idx.T
     
     elif measure=='cosine':
-        pdb.set_trace()
+        # pdb.set_trace()
         sim_scores = np.matmul(text_embeddings, unique_im_embeddings.T)
         inds_np = np.argsort(sim_scores)[:, ::-1]
         
@@ -141,22 +140,26 @@ def i2t_gpu(image_embeddings, text_embeddings, measure='order', shard_size=25):
     meanr = ranks.mean() + 1
     return (r1, r5, r10, medr, meanr), (ranks, top1), inds_np
 
+
 def eval(args):
     
-    #load data
-    image_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/img_features/test/flickr8k_test_r152_precomp.npy')
+    #Reading in all the pre extracted features
+    image_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/img_features/flickr8k_test_features.npy')
     image_embeddings = np.float32(image_embeddings)
+    
+    #since images are only 6k for training and each image has 5 captions, we have to repeat every image 5 times. 
     image_embeddings_rep = np.repeat(image_embeddings, repeats = 5, axis = 0)
     
+    text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/sentence_features/flickr8k_test_sentence_features.npy')
+    # pdb.set_trace()
+    audio_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/flickr8k_test_audio_features.npy')
+    audio_embeddings = np.float32(audio_embeddings)
     
-    # text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/setnence_features/test/flickr8k_sentence_skipthoughts_test.npy')
-    
-    text_embeddings = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/test/flickr8k_audio_mfcc_test.npy')
-    text_embeddings = np.float32(text_embeddings)
-    
-    text_embeddings = text_embeddings/(np.max(text_embeddings))
+    #Scaling the audio features
+    scalar = MinMaxScaler(feature_range=(-1, 1))
+    audio_embeddings = scalar.fit_transform(audio_embeddings)
 
-    pdb.set_trace()
+    # pdb.set_trace()
     dataset = tf.data.Dataset.from_tensor_slices((image_embeddings_rep, text_embeddings))
     
     #Repeat for num epochs
@@ -174,11 +177,11 @@ def eval(args):
     image_embeddings_val=np.zeros((5000, args.emb_dim))
     text_embeddings_val=np.zeros((5000, args.emb_dim))
     model = CMR()
-    image_embeddings_t, text_embeddings_t = model.build_rvs_model(im_emb,txt_emb, args, is_training = True)
+    image_embeddings_t, text_embeddings_t = model.build_rvs_model(im_emb,txt_emb, args)
         
     print(image_embeddings_t.shape)
     print(text_embeddings_t.shape)
-    pdb.set_trace()
+    # pdb.set_trace()
     # norm_image_embeddings = tf.nn.l2_normalize(tf.squeeze(image_embeddings_t), axis=1, name="norm_image_embeddings")
     # norm_text_embeddings = tf.nn.l2_normalize(text_embeddings_t, axis=1, name="norm_text_embeddings")
     saver=tf.train.Saver()       
@@ -205,7 +208,7 @@ def eval(args):
     # Average over 5 folds
     
     results=[]
-    pdb.set_trace()
+    # pdb.set_trace()
     ri, ri0, i2t_ranked_idx = i2t_gpu(image_embeddings_val, text_embeddings_val, measure=args.measure)
     print "Image to Text: "
     print "R@1: {} R@5: {} R@10 : {} Med: {} Mean: {}".format(ri[0], ri[1], ri[2], ri[3], ri[4])
@@ -239,7 +242,7 @@ if __name__ == "__main__":
     parser.add_argument('--measure', type=str, default='cosine', help="Type of measure")
     # parser.add_argument('--record_path', type=str, default='/shared/kgcoe-research/mil/peri/mscoco_data/coco_val_precompute.tfrecord', help="Path to val tfrecord")
     # parser.add_argument('--root_path', type=str, default='/shared/kgcoe-research/mil/video_project/mscoco_skipthoughts/images/val2014', help="Experiment dir")
-    parser.add_argument('--checkpoint', type=str, default='/shared/kgcoe-research/mil/new_cvs_data/experiment/model.ckpt', help="checkpoint")
+    parser.add_argument('--checkpoint', type=str, default='/shared/kgcoe-research/mil/new_cvs_data/experiment_new/model.ckpt', help="checkpoint")
     # parser.add_argument('--model', type=str, default='vse', help="Name of the model")
     # parser.add_argument('--mode', type=str, default='val', help="Training or validation")
     # parser.add_argument('--base', type=str, default='resnet_v2_152', help="Base architecture")
