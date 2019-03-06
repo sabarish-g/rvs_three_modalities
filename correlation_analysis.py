@@ -6,9 +6,6 @@ from sklearn.decomposition import PCA
 A = np.load('/shared/kgcoe-research/mil/new_cvs_data/sentence_features/flickr8k_train_sentence_features.npy')
 B = np.load('/shared/kgcoe-research/mil/new_cvs_data/audio_features/flickr8k_train_audio_features.npy')
 
-
-
-    
 out = []
 
 pca = PCA(n_components = 1024)
